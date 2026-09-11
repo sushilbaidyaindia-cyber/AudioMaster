@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
+    android:gravity="center_horizontal"
     android:padding="24dp"
     android:background="#121212">
 
@@ -11,6 +11,7 @@
         android:id="@+id/titleText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
         android:text="Audio Master"
         android:textColor="#00D2FF"
         android:textSize="28sp"
@@ -18,13 +19,44 @@
         android:contentDescription="Audio Master" />
 
     <TextView
-        android:id="@+id/subtitleText"
-        android:layout_width="wrap_content"
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center"
+        android:text="মাইক বন্ধ আছে"
+        android:textColor="#AAAAAA"
+        android:textSize="18sp"
+        android:contentDescription="মাইক বন্ধ আছে" />
+
+    <TextView
+        android:id="@+id/levelText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="লেভেল: --"
+        android:textColor="#00D2FF"
+        android:textSize="16sp"
+        android:contentDescription="ভলিউম লেভেল" />
+
+    <Button
+        android:id="@+id/micBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="মাইক চালু করুন"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:contentDescription="মাইক চালু বা বন্ধ করুন" />
+
+    <Button
+        android:id="@+id/muteBtn"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="নেটিভ অ্যাপ চালু হয়েছে"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:contentDescription="নেটিভ অ্যাপ চালু হয়েছে" />
+        android:text="মিউট"
+        android:enabled="false"
+        android:contentDescription="মিউট বা আনমিউট" />
 
 </LinearLayout>
