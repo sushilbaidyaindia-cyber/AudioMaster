@@ -1,62 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center_horizontal"
-    android:padding="24dp"
-    android:background="#121212">
+    android:background="#121212"
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/titleText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:text="Audio Master"
-        android:textColor="#00D2FF"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:contentDescription="Audio Master" />
-
-    <TextView
-        android:id="@+id/statusText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:gravity="center"
-        android:text="মাইক বন্ধ আছে"
-        android:textColor="#AAAAAA"
-        android:textSize="18sp"
-        android:contentDescription="মাইক বন্ধ আছে" />
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <TextView
-        android:id="@+id/levelText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:gravity="center"
-        android:text="লেভেল: --"
-        android:textColor="#00D2FF"
-        android:textSize="16sp"
-        android:contentDescription="ভলিউম লেভেল" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Audio Master"
+            android:textColor="#00D2FF"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:contentDescription="Audio Master" />
 
-    <Button
-        android:id="@+id/micBtn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="মাইক চালু করুন"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:contentDescription="মাইক চালু বা বন্ধ করুন" />
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="মাইক বন্ধ আছে"
+            android:textColor="#AAAAAA"
+            android:textSize="18sp"
+            android:contentDescription="মাইক বন্ধ আছে" />
 
-    <Button
-        android:id="@+id/muteBtn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="মিউট"
-        android:enabled="false"
-        android:contentDescription="মিউট বা আনমিউট" />
+        <TextView
+            android:id="@+id/levelText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="লেভেল: --"
+            android:textColor="#00D2FF"
+            android:textSize="16sp"
+            android:contentDescription="লেভেল" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/micBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="মাইক চালু করুন"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:contentDescription="মাইক চালু বা বন্ধ" />
+
+        <Button
+            android:id="@+id/muteBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="মিউট"
+            android:enabled="false"
+            android:contentDescription="মিউট বা আনমিউট" />
+
+        <!-- Gain -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="ইনপুট গেইন"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="ইনপুট গেইন" />
+        <TextView
+            android:id="@+id/gainVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="৮০%"
+            android:textColor="#00D2FF"
+            android:contentDescription="গেইন মান" />
+        <SeekBar
+            android:id="@+id/gainBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="150"
+            android:progress="80"
+            android:contentDescription="গেইন স্লাইডার" />
+
+        <!-- Noise gate -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="নয়েজ গেট"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="নয়েজ গেট" />
+        <TextView
+            android:id="@+id/gateVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="-৪০ dB"
+            android:textColor="#00D2FF"
+            android:contentDescription="গেট মান" />
+        <SeekBar
+            android:id="@+id/gateBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="70"
+            android:progress="40"
+            android:contentDescription="নয়েজ গেট স্লাইডার" />
+
+        <!-- Bass -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="বাস"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="বাস" />
+        <TextView
+            android:id="@+id/bassVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="০ dB"
+            android:textColor="#00D2FF"
+            android:contentDescription="বাস মান" />
+        <SeekBar
+            android:id="@+id/bassBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="24"
+            android:progress="12"
+            android:contentDescription="বাস স্লাইডার" />
+
+        <!-- Treble -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="ট্রেবল"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="ট্রেবল" />
+        <TextView
+            android:id="@+id/trebleVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="০ dB"
+            android:textColor="#00D2FF"
+            android:contentDescription="ট্রেবল মান" />
+        <SeekBar
+            android:id="@+id/trebleBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="24"
+            android:progress="12"
+            android:contentDescription="ট্রেবল স্লাইডার" />
+
+        <!-- Echo -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="ইকো"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="ইকো" />
+        <TextView
+            android:id="@+id/echoVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="০%"
+            android:textColor="#00D2FF"
+            android:contentDescription="ইকো মান" />
+        <SeekBar
+            android:id="@+id/echoBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progress="0"
+            android:contentDescription="ইকো স্লাইডার" />
+
+    </LinearLayout>
+</ScrollView>
