@@ -79,7 +79,6 @@ class MainActivity : AppCompatActivity() {
 
     private var bassState = 0f
     private var trebleState = 0f
-
     private val echoDelaySamples = sampleRate / 4
     private val echoBuffer = FloatArray(echoDelaySamples)
     private var echoIndex = 0
@@ -134,7 +133,6 @@ class MainActivity : AppCompatActivity() {
         micBtn.setOnClickListener {
             if (!isMicOn) startMicFlow() else stopMic()
         }
-
         muteBtn.setOnClickListener {
             if (!isMicOn) return@setOnClickListener
             isMuted = !isMuted
@@ -144,10 +142,9 @@ class MainActivity : AppCompatActivity() {
                 statusText.contentDescription = statusText.text
             }
         }
-
         recordBtn.setOnClickListener {
             if (!isMicOn) return@setOnClickListener
-            if (!isRecording) startRecording() else stopRecording(true)
+            if (!isRecording) beginWavCapture() else endWavCapture(true)
         }
 
         gainBar.setOnSeekBarChangeListener(onSeek { p ->
@@ -258,7 +255,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startRecording() {
+    private fun beginWavCapture() {
         try {
             val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
             if (dir == null) {
@@ -269,7 +266,7 @@ class MainActivity : AppCompatActivity() {
             val name = "AudioMaster_" + System.currentTimeMillis() + ".wav"
             wavFile = File(dir, name)
             wavOut = FileOutputStream(wavFile)
-            writeWavHeaderPlaceholder(wavOut!!)
+            wavOut!!.write(ByteArray(44))
             recordedBytes = 0
             isRecording = true
             recordBtn.text = "রেকর্ড বন্ধ"
@@ -281,7 +278,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun stopRecording(showToast: Boolean) {
+    private fun endWavCapture(showToast: Boolean) {
         if (!isRecording) return
         isRecording = false
         try {
@@ -293,7 +290,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val f = wavFile
             if (f != null && f.exists()) {
-                writeWavHeaderFinal(f, recordedBytes)
+                finalizeWavHeader(f, recordedBytes)
                 if (showToast) {
                     Toast.makeText(this, "সেভ: " + f.absolutePath, Toast.LENGTH_LONG).show()
                 }
@@ -310,27 +307,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun writeWavHeaderPlaceholder(out: FileOutputStream) {
-        val header = ByteArray(44)
-        out.write(header)
-    }
-
-    private fun writeWavHeaderFinal(file: File, dataBytes: Int) {
+    private fun finalizeWavHeader(file: File, dataBytes: Int) {
         val raf = RandomAccessFile(file, "rw")
         val total = 36 + dataBytes
         val bb = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
-        bb.put("RIFF".toByteArray())
+        bb.put("RIFF".toByteArray(Charsets.US_ASCII))
         bb.putInt(total)
-        bb.put("WAVE".toByteArray())
-        bb.put("fmt ".toByteArray())
+        bb.put("WAVE".toByteArray(Charsets.US_ASCII))
+        bb.put("fmt ".toByteArray(Charsets.US_ASCII))
         bb.putInt(16)
-        bb.putShort(1)
-        bb.putShort(1)
+        bb.putShort(1.toShort())
+        bb.putShort(1.toShort())
         bb.putInt(sampleRate)
         bb.putInt(sampleRate * 2)
-        bb.putShort(2)
-        bb.putShort(16)
-        bb.put("data".toByteArray())
+        bb.putShort(2.toShort())
+        bb.putShort(16.toShort())
+        bb.put("data".toByteArray(Charsets.US_ASCII))
         bb.putInt(dataBytes)
         raf.seek(0)
         raf.write(bb.array())
@@ -486,7 +478,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopMic() {
-        if (isRecording) stopRecording(true)
+        if (isRecording) endWavCapture(true)
         isMicOn = false
         try { monitorThread?.join(500) } catch (_: Exception) {}
         monitorThread = null
