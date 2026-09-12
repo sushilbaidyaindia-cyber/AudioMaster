@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlin.concurrent.thread
+import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.pow
@@ -47,9 +48,6 @@ class MainActivity : AppCompatActivity() {
     private var audioTrack: AudioTrack? = null
 
     private val sampleRate = 44100
-    private val channelIn = AudioFormat.CHANNEL_IN_MONO
-    private val channelOut = AudioFormat.CHANNEL_OUT_MONO
-    private val encoding = AudioFormat.ENCODING_PCM_16BIT
     private val permissionCode = 1001
     private val uiHandler = Handler(Looper.getMainLooper())
 
@@ -59,11 +57,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var trebleDb = 0f
     @Volatile private var echoMix = 0f
 
-    // simple shelf filter state
     private var bassState = 0f
     private var trebleState = 0f
-
-    // echo delay \~250ms
     private val echoDelaySamples = sampleRate / 4
     private val echoBuffer = FloatArray(echoDelaySamples)
     private var echoIndex = 0
@@ -99,44 +94,39 @@ class MainActivity : AppCompatActivity() {
             statusText.contentDescription = statusText.text
         }
 
-        gainBar.setOnSeekBarChangeListener(simpleSeek { p ->
+        gainBar.setOnSeekBarChangeListener(onSeek { p ->
             gain = p / 100f
             gainVal.text = "$p%"
             gainVal.contentDescription = "গেইন $p শতাংশ"
         })
-        gateBar.setOnSeekBarChangeListener(simpleSeek { p ->
-            // progress 0..70 => -80..-10 dB
+        gateBar.setOnSeekBarChangeListener(onSeek { p ->
             gateDb = -80f + p
             gateVal.text = "${gateDb.toInt()} dB"
             gateVal.contentDescription = "গেট ${gateDb.toInt()} ডিবি"
         })
-        bassBar.setOnSeekBarChangeListener(simpleSeek { p ->
+        bassBar.setOnSeekBarChangeListener(onSeek { p ->
             bassDb = (p - 12).toFloat()
             val t = if (bassDb > 0) "+\( {bassDb.toInt()} dB" else " \){bassDb.toInt()} dB"
             bassVal.text = t
             bassVal.contentDescription = "বাস $t"
         })
-        trebleBar.setOnSeekBarChangeListener(simpleSeek { p ->
+        trebleBar.setOnSeekBarChangeListener(onSeek { p ->
             trebleDb = (p - 12).toFloat()
             val t = if (trebleDb > 0) "+\( {trebleDb.toInt()} dB" else " \){trebleDb.toInt()} dB"
             trebleVal.text = t
             trebleVal.contentDescription = "ট্রেবল $t"
         })
-        echoBar.setOnSeekBarChangeListener(simpleSeek { p ->
+        echoBar.setOnSeekBarChangeListener(onSeek { p ->
             echoMix = p / 100f
             echoVal.text = "$p%"
             echoVal.contentDescription = "ইকো $p শতাংশ"
         })
     }
 
-    private fun simpleSeek(onChange: (Int) -> Unit): SeekBar.OnSeekBarChangeListener {
-        return object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                onChange(progress)
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        }
+    private fun onSeek(block: (Int) -> Unit) = object : SeekBar.OnSeekBarChangeListener {
+        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = block(progress)
+        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+        override fun onStopTrackingTouch(seekBar: SeekBar?) {}
     }
 
     private fun startMicFlow() {
@@ -169,8 +159,12 @@ class MainActivity : AppCompatActivity() {
     private fun startMic() {
         if (isMicOn) return
         try {
-            val minRec = AudioRecord.getMinBufferSize(sampleRate, channelIn, encoding)
-            val minPlay = AudioTrack.getMinBufferSize(sampleRate, channelOut, encoding)
+            val minRec = AudioRecord.getMinBufferSize(
+                sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+            )
+            val minPlay = AudioTrack.getMinBufferSize(
+                sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT
+            )
             val bufferSize = max(minRec, minPlay) * 2
 
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -179,11 +173,17 @@ class MainActivity : AppCompatActivity() {
 
             audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                sampleRate, channelIn, encoding, bufferSize
+                sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
             )
             audioTrack = AudioTrack(
                 AudioManager.STREAM_MUSIC,
-                sampleRate, channelOut, encoding, bufferSize,
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize,
                 AudioTrack.MODE_STREAM
             )
 
@@ -195,11 +195,10 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            // reset FX state
             bassState = 0f
             trebleState = 0f
             echoIndex = 0
-            for (i in echoBuffer.indices) echoBuffer[i] = 0f
+            echoBuffer.fill(0f)
 
             isMicOn = true
             isMuted = false
@@ -214,28 +213,27 @@ class MainActivity : AppCompatActivity() {
 
             monitorThread = thread(start = true, name = "mic-monitor") {
                 val buf = ShortArray(bufferSize / 2)
-                val gateLin = 10f.pow(gateDb / 20f)
                 while (isMicOn) {
                     val rec = audioRecord ?: break
                     val track = audioTrack ?: break
                     val read = rec.read(buf, 0, buf.size)
                     if (read <= 0) continue
 
-                    // RMS for gate + meter
                     var sumSq = 0.0
                     for (i in 0 until read) {
                         val x = buf[i] / 32768f
                         sumSq += (x * x).toDouble()
                     }
                     val rms = sqrt(sumSq / read).toFloat()
+                    val gateLin = 10f.pow(gateDb / 20f)
                     val open = rms >= gateLin
 
                     val g = gain
                     val bDb = bassDb
                     val tDb = trebleDb
                     val eMix = echoMix
-                    val bassA = shelfAlpha(bDb)
-                    val trebleA = shelfAlpha(tDb)
+                    val bassA = 0.05f + abs(bDb) / 12f * 0.05f
+                    val trebleA = 0.05f + abs(tDb) / 12f * 0.05f
                     val bassG = 10f.pow(bDb / 20f)
                     val trebleG = 10f.pow(tDb / 20f)
 
@@ -244,16 +242,13 @@ class MainActivity : AppCompatActivity() {
                         x *= g
                         if (!open) x = 0f
 
-                        // simple low shelf-ish
                         bassState += bassA * (x - bassState)
-                        x = x + (bassState * (bassG - 1f))
+                        x += bassState * (bassG - 1f)
 
-                        // simple high emphasis
                         val high = x - trebleState
                         trebleState += trebleA * (x - trebleState)
-                        x = x + high * (trebleG - 1f) * 0.5f
+                        x += high * (trebleG - 1f) * 0.5f
 
-                        // echo
                         val delayed = echoBuffer[echoIndex]
                         val y = x + delayed * eMix
                         echoBuffer[echoIndex] = x + delayed * 0.35f * eMix
@@ -280,11 +275,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "এরর: ${e.message}", Toast.LENGTH_LONG).show()
             stopMic()
         }
-    }
-
-    private fun shelfAlpha(db: Float): Float {
-        // mild smoothing factor
-        return 0.05f + (kotlin.math.abs(db) / 12f) * 0.05f
     }
 
     private fun stopMic() {
