@@ -24,8 +24,6 @@ import androidx.core.content.ContextCompat
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.log10
@@ -290,7 +288,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val f = wavFile
             if (f != null && f.exists()) {
-                finalizeWavHeader(f, recordedBytes)
+                writeWavHeader(f, recordedBytes)
                 if (showToast) {
                     Toast.makeText(this, "সেভ: " + f.absolutePath, Toast.LENGTH_LONG).show()
                 }
@@ -307,37 +305,62 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun finalizeWavHeader(file: File, dataBytes: Int) {
+    private fun writeIntLE(out: ByteArray, offset: Int, value: Int) {
+        out[offset] = (value and 0xff).toByte()
+        out[offset + 1] = ((value shr 8) and 0xff).toByte()
+        out[offset + 2] = ((value shr 16) and 0xff).toByte()
+        out[offset + 3] = ((value shr 24) and 0xff).toByte()
+    }
+
+    private fun writeShortLE(out: ByteArray, offset: Int, value: Int) {
+        out[offset] = (value and 0xff).toByte()
+        out[offset + 1] = ((value shr 8) and 0xff).toByte()
+    }
+
+    private fun writeWavHeader(file: File, dataBytes: Int) {
+        val h = ByteArray(44)
+        h[0] = 'R'.code.toByte()
+        h[1] = 'I'.code.toByte()
+        h[2] = 'F'.code.toByte()
+        h[3] = 'F'.code.toByte()
+        writeIntLE(h, 4, 36 + dataBytes)
+        h[8] = 'W'.code.toByte()
+        h[9] = 'A'.code.toByte()
+        h[10] = 'V'.code.toByte()
+        h[11] = 'E'.code.toByte()
+        h[12] = 'f'.code.toByte()
+        h[13] = 'm'.code.toByte()
+        h[14] = 't'.code.toByte()
+        h[15] = ' '.code.toByte()
+        writeIntLE(h, 16, 16)
+        writeShortLE(h, 20, 1)
+        writeShortLE(h, 22, 1)
+        writeIntLE(h, 24, sampleRate)
+        writeIntLE(h, 28, sampleRate * 2)
+        writeShortLE(h, 32, 2)
+        writeShortLE(h, 34, 16)
+        h[36] = 'd'.code.toByte()
+        h[37] = 'a'.code.toByte()
+        h[38] = 't'.code.toByte()
+        h[39] = 'a'.code.toByte()
+        writeIntLE(h, 40, dataBytes)
         val raf = RandomAccessFile(file, "rw")
-        val total = 36 + dataBytes
-        val bb = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
-        bb.put("RIFF".toByteArray(Charsets.US_ASCII))
-        bb.putInt(total)
-        bb.put("WAVE".toByteArray(Charsets.US_ASCII))
-        bb.put("fmt ".toByteArray(Charsets.US_ASCII))
-        bb.putInt(16)
-        bb.putShort(1.toShort())
-        bb.putShort(1.toShort())
-        bb.putInt(sampleRate)
-        bb.putInt(sampleRate * 2)
-        bb.putShort(2.toShort())
-        bb.putShort(16.toShort())
-        bb.put("data".toByteArray(Charsets.US_ASCII))
-        bb.putInt(dataBytes)
         raf.seek(0)
-        raf.write(bb.array())
+        raf.write(h)
         raf.close()
     }
 
     private fun writePcmToWav(samples: ShortArray, count: Int) {
         val out = wavOut ?: return
-        val bytes = ByteBuffer.allocate(count * 2).order(ByteOrder.LITTLE_ENDIAN)
+        val bytes = ByteArray(count * 2)
+        var j = 0
         for (i in 0 until count) {
-            bytes.putShort(samples[i])
+            val v = samples[i].toInt()
+            bytes[j++] = (v and 0xff).toByte()
+            bytes[j++] = ((v shr 8) and 0xff).toByte()
         }
-        val arr = bytes.array()
-        out.write(arr)
-        recordedBytes += arr.size
+        out.write(bytes)
+        recordedBytes += bytes.size
     }
 
     private fun startMic() {
