@@ -66,14 +66,16 @@ class MainActivity : AppCompatActivity() {
     private val permissionCode = 1001
     private val uiHandler = Handler(Looper.getMainLooper())
 
-    @Volatile private var gain = 0.8f
-    @Volatile private var gateDb = -40f
+    // বেশি সংবেদনশীল ডিফল্ট
+    @Volatile private var gain = 1.2f
+    @Volatile private var gateDb = -55f
     @Volatile private var bassDb = 0f
     @Volatile private var trebleDb = 0f
     @Volatile private var echoMix = 0f
     @Volatile private var reverbMix = 0f
     @Volatile private var reverbRoom = 0.5f
     @Volatile private var reverbDamp = 0.5f
+    private val preamp = 1.8f
 
     private var bassState = 0f
     private var trebleState = 0f
@@ -113,6 +115,12 @@ class MainActivity : AppCompatActivity() {
         reverbVal = findViewById(R.id.reverbVal)
 
         initReverbBuffers()
+
+        // স্লাইডার ডিফল্ট UI
+        gainBar.progress = 120
+        gainVal.text = "120%"
+        gateBar.progress = 25
+        gateVal.text = "-55 dB"
 
         val types = arrayOf("ছোট ঘর", "হল", "ক্যাথিড্রাল", "প্লেট")
         reverbType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, types)
@@ -378,8 +386,9 @@ class MainActivity : AppCompatActivity() {
                 != PackageManager.PERMISSION_GRANTED
             ) return
 
+            // MIC = দূরের শব্দ ভালো ধরে; VOICE_COMMUNICATION নয়
             audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                MediaRecorder.AudioSource.MIC,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
@@ -442,7 +451,7 @@ class MainActivity : AppCompatActivity() {
                     val gateLin = 10f.pow(gateDb / 20f)
                     val open = rms >= gateLin
 
-                    val g = gain
+                    val g = gain * preamp
                     val bDb = bassDb
                     val tDb = trebleDb
                     val eMix = echoMix
