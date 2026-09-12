@@ -153,4 +153,75 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="0 dB"
-            android:textColor="#00D2FF
+            android:textColor="#00D2FF"
+            android:contentDescription="ট্রেবল মান" />
+        <SeekBar
+            android:id="@+id/trebleBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="24"
+            android:progress="12"
+            android:contentDescription="ট্রেবল স্লাইডার" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="ইকো"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="ইকো" />
+        <TextView
+            android:id="@+id/echoVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="0%"
+            android:textColor="#00D2FF"
+            android:contentDescription="ইকো মান" />
+        <SeekBar
+            android:id="@+id/echoBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progress="0"
+            android:contentDescription="ইকো স্লাইডার" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="রিভার্ব ধরন"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="রিভার্ব ধরন" />
+        <Spinner
+            android:id="@+id/reverbType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="রিভার্ব টাইপ বেছে নিন" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="রিভার্ব পরিমাণ"
+            android:textColor="#DDDDDD"
+            android:textSize="15sp"
+            android:contentDescription="রিভার্ব পরিমাণ" />
+        <TextView
+            android:id="@+id/reverbVal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="0%"
+            android:textColor="#00D2FF"
+            android:contentDescription="রিভার্ব মান" />
+        <SeekBar
+            android:id="@+id/reverbBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progress="0"
+            android:contentDescription="রিভার্ব স্লাইডার" />
+
+    </LinearLayout>
+</ScrollView>
