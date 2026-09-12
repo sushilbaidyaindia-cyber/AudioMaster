@@ -96,30 +96,32 @@ class MainActivity : AppCompatActivity() {
 
         gainBar.setOnSeekBarChangeListener(onSeek { p ->
             gain = p / 100f
-            gainVal.text = "$p%"
-            gainVal.contentDescription = "গেইন $p শতাংশ"
+            gainVal.text = p.toString() + "%"
+            gainVal.contentDescription = "গেইন " + p + " শতাংশ"
         })
         gateBar.setOnSeekBarChangeListener(onSeek { p ->
             gateDb = -80f + p
-            gateVal.text = "${gateDb.toInt()} dB"
-            gateVal.contentDescription = "গেট ${gateDb.toInt()} ডিবি"
+            gateVal.text = gateDb.toInt().toString() + " dB"
+            gateVal.contentDescription = "গেট " + gateDb.toInt() + " ডিবি"
         })
         bassBar.setOnSeekBarChangeListener(onSeek { p ->
             bassDb = (p - 12).toFloat()
-            val t = if (bassDb > 0) "+\( {bassDb.toInt()} dB" else " \){bassDb.toInt()} dB"
+            val n = bassDb.toInt()
+            val t = if (n > 0) "+" + n + " dB" else n.toString() + " dB"
             bassVal.text = t
-            bassVal.contentDescription = "বাস $t"
+            bassVal.contentDescription = "বাস " + t
         })
         trebleBar.setOnSeekBarChangeListener(onSeek { p ->
             trebleDb = (p - 12).toFloat()
-            val t = if (trebleDb > 0) "+\( {trebleDb.toInt()} dB" else " \){trebleDb.toInt()} dB"
+            val n = trebleDb.toInt()
+            val t = if (n > 0) "+" + n + " dB" else n.toString() + " dB"
             trebleVal.text = t
-            trebleVal.contentDescription = "ট্রেবল $t"
+            trebleVal.contentDescription = "ট্রেবল " + t
         })
         echoBar.setOnSeekBarChangeListener(onSeek { p ->
             echoMix = p / 100f
-            echoVal.text = "$p%"
-            echoVal.contentDescription = "ইকো $p শতাংশ"
+            echoVal.text = p.toString() + "%"
+            echoVal.contentDescription = "ইকো " + p + " শতাংশ"
         })
     }
 
@@ -266,13 +268,13 @@ class MainActivity : AppCompatActivity() {
                     val db = if (rms < 0.0001f) -60.0 else (20.0 * log10(rms.toDouble())).coerceIn(-60.0, 0.0)
                     val pct = (((db + 60) / 60.0) * 100).toInt()
                     uiHandler.post {
-                        levelText.text = "লেভেল: \( pct% ( \){db.toInt()} dB)"
+                        levelText.text = "লেভেল: " + pct + "% (" + db.toInt() + " dB)"
                         levelText.contentDescription = levelText.text
                     }
                 }
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "এরর: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "এরর: " + e.message, Toast.LENGTH_LONG).show()
             stopMic()
         }
     }
