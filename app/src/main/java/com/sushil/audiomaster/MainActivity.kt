@@ -8,18 +8,24 @@ import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.Spinner
-import android.widget.AdapterView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.io.File
+import java.io.FileOutputStream
+import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.log10
@@ -33,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var levelText: TextView
     private lateinit var micBtn: Button
     private lateinit var muteBtn: Button
+    private lateinit var recordBtn: Button
     private lateinit var gainBar: SeekBar
     private lateinit var gateBar: SeekBar
     private lateinit var bassBar: SeekBar
@@ -49,9 +56,13 @@ class MainActivity : AppCompatActivity() {
 
     private var isMicOn = false
     private var isMuted = false
+    private var isRecording = false
     private var monitorThread: Thread? = null
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
+    private var wavOut: FileOutputStream? = null
+    private var wavFile: File? = null
+    private var recordedBytes = 0
 
     private val sampleRate = 44100
     private val permissionCode = 1001
@@ -73,7 +84,6 @@ class MainActivity : AppCompatActivity() {
     private val echoBuffer = FloatArray(echoDelaySamples)
     private var echoIndex = 0
 
-    // Freeverb-like comb + allpass
     private val combLens = intArrayOf(1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617)
     private val allpassLens = intArrayOf(556, 441, 341, 225)
     private lateinit var combBuf: Array<FloatArray>
@@ -90,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         levelText = findViewById(R.id.levelText)
         micBtn = findViewById(R.id.micBtn)
         muteBtn = findViewById(R.id.muteBtn)
+        recordBtn = findViewById(R.id.recordBtn)
         gainBar = findViewById(R.id.gainBar)
         gateBar = findViewById(R.id.gateBar)
         bassBar = findViewById(R.id.bassBar)
@@ -107,8 +118,7 @@ class MainActivity : AppCompatActivity() {
         initReverbBuffers()
 
         val types = arrayOf("ছোট ঘর", "হল", "ক্যাথিড্রাল", "প্লেট")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, types)
-        reverbType.adapter = adapter
+        reverbType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, types)
         reverbType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 when (position) {
@@ -129,8 +139,15 @@ class MainActivity : AppCompatActivity() {
             if (!isMicOn) return@setOnClickListener
             isMuted = !isMuted
             muteBtn.text = if (isMuted) "আনমিউট" else "মিউট"
-            statusText.text = if (isMuted) "মাইক মিউট আছে" else "মাইক চালু আছে"
-            statusText.contentDescription = statusText.text
+            if (!isRecording) {
+                statusText.text = if (isMuted) "মাইক মিউট আছে" else "মাইক চালু আছে"
+                statusText.contentDescription = statusText.text
+            }
+        }
+
+        recordBtn.setOnClickListener {
+            if (!isMicOn) return@setOnClickListener
+            if (!isRecording) startRecording() else stopRecording(true)
         }
 
         gainBar.setOnSeekBarChangeListener(onSeek { p ->
@@ -193,7 +210,6 @@ class MainActivity : AppCompatActivity() {
             isolated += y
         }
         isolated /= combLens.size
-
         var x = isolated
         for (i in allpassLens.indices) {
             val buf = allpassBuf[i]
@@ -240,6 +256,96 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "মাইকের অনুমতি দরকার", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun startRecording() {
+        try {
+            val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            if (dir == null) {
+                Toast.makeText(this, "সেভ ফোল্ডার পাওয়া যায়নি", Toast.LENGTH_LONG).show()
+                return
+            }
+            if (!dir.exists()) dir.mkdirs()
+            val name = "AudioMaster_" + System.currentTimeMillis() + ".wav"
+            wavFile = File(dir, name)
+            wavOut = FileOutputStream(wavFile)
+            writeWavHeaderPlaceholder(wavOut!!)
+            recordedBytes = 0
+            isRecording = true
+            recordBtn.text = "রেকর্ড বন্ধ"
+            statusText.text = "রেকর্ডিং চলছে"
+            statusText.contentDescription = "রেকর্ডিং চলছে"
+        } catch (e: Exception) {
+            Toast.makeText(this, "রেকর্ড শুরু হয়নি: " + e.message, Toast.LENGTH_LONG).show()
+            isRecording = false
+        }
+    }
+
+    private fun stopRecording(showToast: Boolean) {
+        if (!isRecording) return
+        isRecording = false
+        try {
+            wavOut?.flush()
+            wavOut?.close()
+        } catch (_: Exception) {
+        }
+        wavOut = null
+        try {
+            val f = wavFile
+            if (f != null && f.exists()) {
+                writeWavHeaderFinal(f, recordedBytes)
+                if (showToast) {
+                    Toast.makeText(this, "সেভ: " + f.absolutePath, Toast.LENGTH_LONG).show()
+                }
+            }
+        } catch (e: Exception) {
+            if (showToast) {
+                Toast.makeText(this, "সেভ এরর: " + e.message, Toast.LENGTH_LONG).show()
+            }
+        }
+        recordBtn.text = "রেকর্ড শুরু"
+        if (isMicOn) {
+            statusText.text = if (isMuted) "মাইক মিউট আছে" else "মাইক চালু আছে"
+            statusText.contentDescription = statusText.text
+        }
+    }
+
+    private fun writeWavHeaderPlaceholder(out: FileOutputStream) {
+        val header = ByteArray(44)
+        out.write(header)
+    }
+
+    private fun writeWavHeaderFinal(file: File, dataBytes: Int) {
+        val raf = RandomAccessFile(file, "rw")
+        val total = 36 + dataBytes
+        val bb = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+        bb.put("RIFF".toByteArray())
+        bb.putInt(total)
+        bb.put("WAVE".toByteArray())
+        bb.put("fmt ".toByteArray())
+        bb.putInt(16)
+        bb.putShort(1)
+        bb.putShort(1)
+        bb.putInt(sampleRate)
+        bb.putInt(sampleRate * 2)
+        bb.putShort(2)
+        bb.putShort(16)
+        bb.put("data".toByteArray())
+        bb.putInt(dataBytes)
+        raf.seek(0)
+        raf.write(bb.array())
+        raf.close()
+    }
+
+    private fun writePcmToWav(samples: ShortArray, count: Int) {
+        val out = wavOut ?: return
+        val bytes = ByteBuffer.allocate(count * 2).order(ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until count) {
+            bytes.putShort(samples[i])
+        }
+        val arr = bytes.array()
+        out.write(arr)
+        recordedBytes += arr.size
     }
 
     private fun startMic() {
@@ -296,6 +402,8 @@ class MainActivity : AppCompatActivity() {
             micBtn.text = "মাইক বন্ধ করুন"
             muteBtn.isEnabled = true
             muteBtn.text = "মিউট"
+            recordBtn.isEnabled = true
+            recordBtn.text = "রেকর্ড শুরু"
             statusText.text = "মাইক চালু আছে"
             statusText.contentDescription = "মাইক চালু আছে"
 
@@ -359,6 +467,9 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     track.write(buf, 0, read)
+                    if (isRecording) {
+                        writePcmToWav(buf, read)
+                    }
 
                     val db = if (rms < 0.0001f) -60.0 else (20.0 * log10(rms.toDouble())).coerceIn(-60.0, 0.0)
                     val pct = (((db + 60) / 60.0) * 100).toInt()
@@ -375,6 +486,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopMic() {
+        if (isRecording) stopRecording(true)
         isMicOn = false
         try { monitorThread?.join(500) } catch (_: Exception) {}
         monitorThread = null
@@ -382,6 +494,8 @@ class MainActivity : AppCompatActivity() {
         micBtn.text = "মাইক চালু করুন"
         muteBtn.isEnabled = false
         muteBtn.text = "মিউট"
+        recordBtn.isEnabled = false
+        recordBtn.text = "রেকর্ড শুরু"
         statusText.text = "মাইক বন্ধ আছে"
         statusText.contentDescription = "মাইক বন্ধ আছে"
         levelText.text = "লেভেল: --"
