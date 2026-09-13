@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -66,19 +67,19 @@ class MainActivity : AppCompatActivity() {
     private val permissionCode = 1001
     private val uiHandler = Handler(Looper.getMainLooper())
 
-    // বেশি সংবেদনশীল ডিফল্ট
     @Volatile private var gain = 1.2f
-    @Volatile private var gateDb = -55f
+    @Volatile private var gateDb = -80f
     @Volatile private var bassDb = 0f
     @Volatile private var trebleDb = 0f
     @Volatile private var echoMix = 0f
     @Volatile private var reverbMix = 0f
     @Volatile private var reverbRoom = 0.5f
     @Volatile private var reverbDamp = 0.5f
-    private val preamp = 1.8f
+    private val preamp = 2.2f
 
     private var bassState = 0f
     private var trebleState = 0f
+    private var gateGain = 1f
     private val echoDelaySamples = sampleRate / 4
     private val echoBuffer = FloatArray(echoDelaySamples)
     private var echoIndex = 0
@@ -116,11 +117,11 @@ class MainActivity : AppCompatActivity() {
 
         initReverbBuffers()
 
-        // স্লাইডার ডিফল্ট UI
         gainBar.progress = 120
         gainVal.text = "120%"
-        gateBar.progress = 25
-        gateVal.text = "-55 dB"
+        // গেট প্রায় বন্ধ = পাম্পিং কম
+        gateBar.progress = 0
+        gateVal.text = "-80 dB"
 
         val types = arrayOf("ছোট ঘর", "হল", "ক্যাথিড্রাল", "প্লেট")
         reverbType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, types)
@@ -371,9 +372,24 @@ class MainActivity : AppCompatActivity() {
         recordedBytes += bytes.size
     }
 
+    private fun pickMicSource(): Int {
+        return if (Build.VERSION.SDK_INT >= 24) {
+            try {
+                MediaRecorder.AudioSource.UNPROCESSED
+            } catch (_: Exception) {
+                MediaRecorder.AudioSource.MIC
+            }
+        } else {
+            MediaRecorder.AudioSource.MIC
+        }
+    }
+
     private fun startMic() {
         if (isMicOn) return
         try {
+            val am = getSystemService(AUDIO_SERVICE) as AudioManager
+            am.mode = AudioManager.MODE_NORMAL
+
             val minRec = AudioRecord.getMinBufferSize(
                 sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
             )
@@ -386,14 +402,26 @@ class MainActivity : AppCompatActivity() {
                 != PackageManager.PERMISSION_GRANTED
             ) return
 
-            // MIC = দূরের শব্দ ভালো ধরে; VOICE_COMMUNICATION নয়
+            var source = pickMicSource()
             audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                source,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 bufferSize
             )
+            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                try { audioRecord?.release() } catch (_: Exception) {}
+                source = MediaRecorder.AudioSource.MIC
+                audioRecord = AudioRecord(
+                    source,
+                    sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize
+                )
+            }
+
             audioTrack = AudioTrack(
                 AudioManager.STREAM_MUSIC,
                 sampleRate,
@@ -413,6 +441,7 @@ class MainActivity : AppCompatActivity() {
 
             bassState = 0f
             trebleState = 0f
+            gateGain = 1f
             echoIndex = 0
             echoBuffer.fill(0f)
             for (i in combBuf.indices) combBuf[i].fill(0f)
@@ -449,13 +478,17 @@ class MainActivity : AppCompatActivity() {
                     }
                     val rms = sqrt(sumSq / read).toFloat()
                     val gateLin = 10f.pow(gateDb / 20f)
-                    val open = rms >= gateLin
+
+                    // নরম গেট: হঠাৎ কাটে না
+                    val target = if (rms >= gateLin) 1f else 0.15f
+                    gateGain += (target - gateGain) * 0.08f
 
                     val g = gain * preamp
                     val bDb = bassDb
                     val tDb = trebleDb
                     val eMix = echoMix
                     val rMix = reverbMix
+                    val gg = gateGain
                     val bassA = 0.05f + abs(bDb) / 12f * 0.05f
                     val trebleA = 0.05f + abs(tDb) / 12f * 0.05f
                     val bassG = 10f.pow(bDb / 20f)
@@ -464,7 +497,7 @@ class MainActivity : AppCompatActivity() {
                     for (i in 0 until read) {
                         var x = buf[i] / 32768f
                         x *= g
-                        if (!open) x = 0f
+                        x *= gg
 
                         bassState += bassA * (x - bassState)
                         x += bassState * (bassG - 1f)
